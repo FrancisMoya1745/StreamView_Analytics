@@ -1,55 +1,121 @@
 import streamlit as st
 import pandas as pd
-from PIL import Image
-import os
+import plotly.express as px
 
-st.set_page_config(page_title="StreamView Analytics", layout="wide")
+# Configuración profesional de la página
+st.set_page_config(page_title="StreamView Analytics", page_icon="📊", layout="wide")
 
-st.title("📊 StreamView Analytics - Panel Gerencial")
-st.markdown("Análisis de contenido para apoyar la toma de decisiones basada en datos.")
+# Encabezado corporativo
+st.markdown("<h1 style='text-align: center; color: #E50914;'>StreamView Analytics</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; font-size: 18px;'>Panel Gerencial de Toma de Decisiones</p>", unsafe_allow_html=True)
+st.markdown("---")
 
-# Cargar datos para calcular los KPIs reales
+# Carga e integración de datos
 @st.cache_data
 def load_data():
-    try:
-        df_m = pd.read_csv('data/netflix_movies_detailed_up_to_2025.csv')
-        df_s = pd.read_csv('data/netflix_tv_shows_detailed_up_to_2025.csv')
-        return df_m, df_s
-    except:
-        return None, None
+    df_m = pd.read_csv('data/netflix_movies_detailed_up_to_2025.csv')
+    df_s = pd.read_csv('data/netflix_tv_shows_detailed_up_to_2025.csv')
+    df_m['type'] = 'Película'
+    df_s['type'] = 'Serie'
+    df = pd.concat([df_m, df_s], ignore_index=True)
+    df['rating'] = df['rating'].fillna('Desconocido')
+    return df
 
-df_movies, df_shows = load_data()
+df = load_data()
 
-# Mostrar KPIs si los datos cargaron correctamente
-if df_movies is not None and df_shows is not None:
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total de Películas", f"{len(df_movies):,}")
-    col2.metric("Total de Series", f"{len(df_shows):,}")
-    col3.metric("Volumen Total del Catálogo", f"{len(df_movies) + len(df_shows):,}")
-else:
-    st.warning("Verifica que los archivos CSV estén en la carpeta 'data/'.")
+# ----------------- FILTROS INTERACTIVOS -----------------
+st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg", width=150)
+st.sidebar.header("⚙️ Filtros Globales")
+st.sidebar.markdown("Ajuste los parámetros para actualizar el dashboard en tiempo real.")
 
-st.markdown("---")
-st.subheader("Análisis Exploratorio de Datos (EDA)")
+rango_anios = st.sidebar.slider(
+    "Seleccione Rango de Años de Lanzamiento", 
+    min_value=2000, 
+    max_value=2025, 
+    value=(2015, 2025)
+)
 
-# Usar pestañas para organizar la narrativa visual sin saturar la pantalla
-tab1, tab2, tab3 = st.tabs(["Evolución del Catálogo", "Top Géneros", "Distribución por Audiencia"])
+# Aplicar filtro
+df_filt = df[(df['release_year'] >= rango_anios[0]) & (df['release_year'] <= rango_anios[1])]
 
-def mostrar_imagen(ruta, tab):
-    if os.path.exists(ruta):
-        image = Image.open(ruta)
-        tab.image(image, use_container_width=True)
-    else:
-        tab.info(f"Falta el gráfico. Ejecuta primero: python notebooks/analisis_exploratorio.py")
+# ----------------- KPIs -----------------
+col1, col2, col3 = st.columns(3)
+col1.metric("🎬 Total de Títulos", f"{len(df_filt):,}")
+col2.metric("🎥 Películas vs Series", f"{len(df_filt[df_filt['type']=='Película'])} / {len(df_filt[df_filt['type']=='Serie'])}")
+col3.metric("📅 Rango Analizado", f"{rango_anios[0]} - {rango_anios[1]}")
 
-# Pestaña 1
-mostrar_imagen('images/evolucion_catalogo.png', tab1)
-tab1.markdown("**Justificación y Toma de Decisiones:** Visualiza el ritmo de producción histórico. Crucial para definir el presupuesto futuro y evaluar si la adquisición de series acompaña el nivel de interacción de los clientes.")
+st.markdown("<br>", unsafe_allow_html=True)
 
-# Pestaña 2
-mostrar_imagen('images/top_generos.png', tab2)
-tab2.markdown("**Justificación y Toma de Decisiones:** Identifica las categorías dominantes en el catálogo. Permite orientar las campañas de marketing hacia los géneros de mayor volumen y evaluar reasignaciones de recursos financieros.")
+# ----------------- NARRATIVA VISUAL (TABS) -----------------
+tab1, tab2, tab3 = st.tabs(["📈 Evolución del Catálogo", "🏆 Top Géneros", "🎯 Distribución de Audiencia"])
 
-# Pestaña 3
-mostrar_imagen('images/distribucion_audiencia.png', tab3)
-tab3.markdown("**Justificación y Toma de Decisiones:** Define la identidad demográfica de la plataforma. Fundamental para campañas de expansión de mercado y suscripciones conjuntas enfocadas en segmentos específicos.")
+# ----- PESTAÑA 1: EVOLUCIÓN -----
+with tab1:
+    col_grafico, col_texto = st.columns([7, 3]) # 70% gráfico, 30% texto
+    
+    with col_grafico:
+        evolucion = df_filt.groupby(['release_year', 'type']).size().reset_index(name='count')
+        fig1 = px.line(evolucion, x='release_year', y='count', color='type',
+                       color_discrete_map={'Película': '#E50914', 'Serie': '#221f1f'},
+                       title='Tendencia de Producción Anual',
+                       labels={'release_year': 'Año', 'count': 'Volumen de Títulos', 'type': 'Formato'})
+        fig1.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig1, use_container_width=True)
+        
+    with col_texto:
+        st.markdown("### 📊 Propósito del Gráfico")
+        st.write("Este gráfico actúa como el pulso histórico de la plataforma, mostrando hacia dónde se inclina la estrategia de producción.")
+        st.markdown("### 💡 Apoyo a la Decisión")
+        st.info("Visualizar el cruce entre formatos permite a la gerencia auditar la asignación de presupuestos. Si el engagement demanda series, pero la producción muestra una tendencia a la baja, se deben redirigir los recursos de licencias inmediatamente.")
+
+# ----- PESTAÑA 2: GÉNEROS -----
+with tab2:
+    col_grafico, col_texto = st.columns([7, 3])
+    
+    with col_grafico:
+        col_genero = 'listed_in' if 'listed_in' in df_filt.columns else 'genres'
+        generos = df_filt[col_genero].str.split(',').explode().str.strip().value_counts().head(10).reset_index()
+        generos.columns = ['Género', 'Cantidad']
+        
+        fig2 = px.bar(generos, x='Cantidad', y='Género', orientation='h',
+                      color='Cantidad', color_continuous_scale='Reds',
+                      title='Top 10 Géneros Más Ofertados')
+        fig2.update_layout(yaxis={'categoryorder':'total ascending'}, plot_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig2, use_container_width=True)
+        
+    with col_texto:
+        st.markdown("### 📊 Propósito del Gráfico")
+        st.write("Muestra la identidad actual del catálogo ordenando de mayor a menor el volumen de contenido por categoría, minimizando la carga cognitiva con un formato de ranking intuitivo.")
+        st.markdown("### 💡 Apoyo a la Decisión")
+        st.success("Esencial para los departamentos de Marketing y Adquisiciones. Permite detectar si existe un desbalance entre lo que más cuesta producir frente a lo que más volumen ocupa en el servidor, optimizando la compra de derechos.")
+
+# ----- PESTAÑA 3: AUDIENCIA -----
+with tab3:
+    col_grafico, col_texto = st.columns([6, 4])
+    
+    with col_grafico:
+        adultos = ['TV-MA', 'R', 'NC-17']
+        teens = ['TV-14', 'PG-13']
+        kids = ['TV-PG', 'TV-Y', 'TV-Y7', 'PG', 'G', 'TV-G']
+        
+        def categorizar(rating):
+            if rating in adultos: return 'Adultos (+18)'
+            elif rating in teens: return 'Adolescentes'
+            elif rating in kids: return 'Familiar/Infantil'
+            else: return 'Otros'
+            
+        df_filt_copy = df_filt.copy()
+        df_filt_copy['Audiencia'] = df_filt_copy['rating'].apply(categorizar)
+        conteo = df_filt_copy[df_filt_copy['Audiencia'] != 'Otros']['Audiencia'].value_counts().reset_index()
+        conteo.columns = ['Segmento', 'Total']
+        
+        fig3 = px.pie(conteo, values='Total', names='Segmento', hole=0.4,
+                      color='Segmento', color_discrete_map={'Adultos (+18)':'#E50914', 'Adolescentes':'#564d4d', 'Familiar/Infantil':'#f5f5f1'},
+                      title='Distribución Demográfica del Catálogo')
+        st.plotly_chart(fig3, use_container_width=True)
+        
+    with col_texto:
+        st.markdown("### 📊 Propósito del Gráfico")
+        st.write("Agrupa decenas de clasificaciones complejas en tres macrogrupos fáciles de interpretar mediante un gráfico de anillo.")
+        st.markdown("### 💡 Apoyo a la Decisión")
+        st.warning("Define la viabilidad de nuevas campañas. Si la gerencia desea lanzar suscripciones familiares, este panel muestra instantáneamente si el volumen de contenido 'Familiar/Infantil' respalda la estrategia o si requiere inversión previa.")
