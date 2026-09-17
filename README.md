@@ -21,5 +21,9 @@ Los análisis se basan en los conjuntos de datos corporativos hasta 2025:
 - **Librerías de Análisis:** Pandas, NumPy
 - **Visualización:** Matplotlib, Seaborn, Plotly (Dashboard)
 
-## Autor
-**Francis Moya**
+## Instalación y Ejecución
+Para evitar problemas de entorno o variables de sistema (PATH) al momento de levantar el proyecto en diferentes equipos, sigue estos pasos desde tu terminal, asegurándote de estar posicionado en la carpeta raíz del proyecto:
+
+1. **Instalar dependencias necesarias:**
+   ```bash
+   pip install streamlit pandas matplotlib seaborn plotly
