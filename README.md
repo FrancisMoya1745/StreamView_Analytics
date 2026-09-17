@@ -27,3 +27,7 @@ Para evitar problemas de entorno o variables de sistema (PATH) al momento de lev
 1. **Instalar dependencias necesarias:**
    ```bash
    pip install streamlit pandas matplotlib seaborn plotly
+
+2. **Ejecutar Dashboard:**
+   ```bash
+   python -m streamlit run dashboard/app.py
